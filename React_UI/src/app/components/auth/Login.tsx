@@ -1,25 +1,52 @@
 import { useState } from 'react';
-import { FlaskConical } from 'lucide-react';
+import { FlaskConical, LogIn, AlertCircle } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (userData: any) => void;
 }
 
 export default function Login({ onLogin }: LoginProps) {
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    laboratory: 'central'
-  });
+  const [formData, setFormData] = useState({ username: '', password: '' });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock login - in real Django, this would be handled by backend
-    onLogin({
-      username: formData.username,
-      laboratory: formData.laboratory,
-      role: formData.laboratory === 'central' ? 'Central Admin' : 'Plant Admin'
-    });
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/auth/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: formData.username.trim(),
+          password: formData.password.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.ok) {
+        // Persist auth to localStorage so session survives page refresh
+        const userData = {
+          token: data.token,
+          username: data.username,
+          role: data.role,
+          lab: data.lab,
+          // legacy field used by some components
+          laboratory: data.lab,
+        };
+        localStorage.setItem('lims_auth', JSON.stringify(userData));
+        onLogin(userData);
+      } else {
+        setError(data.error || 'Invalid credentials. Please try again.');
+      }
+    } catch {
+      setError('Cannot connect to server. Make sure the Django backend is running on http://127.0.0.1:8000');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -38,10 +65,18 @@ export default function Login({ onLogin }: LoginProps) {
 
         {/* Login Card */}
         <div className="bg-white rounded-lg shadow-lg p-8">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">Login</h2>
-          
+          <h2 className="text-2xl font-semibold text-gray-800 mb-6">Sign In</h2>
+
+          {/* Error Banner */}
+          {error && (
+            <div className="mb-4 flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit}>
-            {/* Employee ID / Username */}
+            {/* Username */}
             <div className="mb-4">
               <label className="block text-gray-700 font-medium mb-2">
                 Employee ID / Username
@@ -49,15 +84,16 @@ export default function Login({ onLogin }: LoginProps) {
               <input
                 type="text"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter your employee ID"
+                placeholder="e.g. Admin001 or Employee001"
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                autoComplete="username"
                 required
               />
             </div>
 
             {/* Password */}
-            <div className="mb-4">
+            <div className="mb-6">
               <label className="block text-gray-700 font-medium mb-2">
                 Password
               </label>
@@ -67,45 +103,28 @@ export default function Login({ onLogin }: LoginProps) {
                 placeholder="Enter your password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                autoComplete="current-password"
                 required
               />
-            </div>
-
-            {/* Laboratory Selection */}
-            <div className="mb-6">
-              <label className="block text-gray-700 font-medium mb-2">
-                Laboratory
-              </label>
-              <select
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={formData.laboratory}
-                onChange={(e) => setFormData({ ...formData, laboratory: e.target.value })}
-              >
-                <option value="central">Central Laboratory</option>
-                <option value="plant-1">Plant-1 Laboratory</option>
-                <option value="plant-2">Plant-2 Laboratory</option>
-                <option value="plant-3">Plant-3 Laboratory</option>
-                <option value="plant-4">Plant-4 Laboratory</option>
-                <option value="plant-5">Plant-5 Laboratory</option>
-                <option value="plant-6">Plant-6 Laboratory</option>
-                <option value="plant-7">Plant-7 Laboratory</option>
-              </select>
             </div>
 
             {/* Login Button */}
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              disabled={isLoading}
+              className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-colors text-white ${isLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                }`}
             >
-              Login
+              <LogIn className="w-5 h-5" />
+              {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-6 text-gray-600 text-sm">
+        <div className="text-center mt-6 text-gray-500 text-sm">
           <p>© 2026 Industrial Fertilizer Manufacturing Organization</p>
-          <p className="mt-1">Quality Control & Laboratory Services</p>
+          <p className="mt-1">Quality Control &amp; Laboratory Services</p>
         </div>
       </div>
     </div>

@@ -25,31 +25,44 @@ export default function TankerDispatch({ user, onNavigate, onLogout }: TankerDis
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const response = await fetch(
-      'http://127.0.0.1:8000/api/tanker/dispatch/',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      }
-    );
+    try {
+      console.log('Submitting tanker dispatch data:', formData);
+      
+      const response = await fetch(
+        'http://127.0.0.1:8000/api/tanker/dispatch/',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        }
+      );
 
-    if (response.ok) {
-      alert('Tanker dispatch recorded successfully!');
-      setFormData({
-        tanker_number: '',
-        finished_product: '',
-        quantity: '',
-        driver_name: '',
-        dispatch_date: '',
-        dispatch_time: '',
-        destination: '',
-        customer_name: '',
-        batch_number: '',
-        order_number: '',
-      });
-    } else {
-      alert('Error saving tanker dispatch');
+      console.log('Response status:', response.status);
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Success response:', result);
+        alert('Tanker dispatch recorded successfully! Data saved to tanker_dispatch.xlsx and tanker_history.xlsx');
+        setFormData({
+          tanker_number: '',
+          finished_product: '',
+          quantity: '',
+          driver_name: '',
+          dispatch_date: '',
+          dispatch_time: '',
+          destination: '',
+          customer_name: '',
+          batch_number: '',
+          order_number: '',
+        });
+      } else {
+        const errorData = await response.json();
+        console.error('Error response:', errorData);
+        alert(`Error saving tanker dispatch: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Network or fetch error:', error);
+      alert(`Failed to submit tanker dispatch. Error: ${error instanceof Error ? error.message : 'Network error. Please ensure the backend server is running on http://127.0.0.1:8000'}`);
     }
   };
 

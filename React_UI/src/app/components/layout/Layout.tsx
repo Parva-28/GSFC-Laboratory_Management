@@ -1,12 +1,13 @@
-import { 
-  FlaskConical, 
-  LayoutDashboard, 
-  TestTube, 
-  Package, 
-  Truck, 
-  FileText, 
-  BarChart3, 
-  Bell, 
+import {
+  FlaskConical,
+  LayoutDashboard,
+  TestTube,
+  Package,
+  ShieldCheck,
+  Truck,
+  FileText,
+  BarChart3,
+  Bell,
   LogOut,
   Menu,
   X
@@ -24,16 +25,19 @@ interface LayoutProps {
 export default function Layout({ user, onNavigate, onLogout, children, currentPage }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  const isAdmin = user?.role === 'CENTRAL_ADMIN';
+
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'labdata-form', label: 'Lab Data Entry', icon: TestTube },
-    { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'tanker-arrival', label: 'Tanker Arrival', icon: Truck },
-    { id: 'tanker-dispatch', label: 'Tanker Dispatch', icon: Truck },
-    { id: 'tanker-history', label: 'Tanker History', icon: Truck },
-    { id: 'reports', label: 'Reports', icon: FileText },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  ];
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
+    { id: 'labdata-form', label: 'Lab Data Entry', icon: TestTube, adminOnly: false },
+    { id: 'inventory', label: 'Inventory', icon: Package, adminOnly: false },
+    { id: 'inventory-admin', label: 'Inventory Admin', icon: ShieldCheck, adminOnly: true },
+    { id: 'tanker-arrival', label: 'Tanker Arrival', icon: Truck, adminOnly: false },
+    { id: 'tanker-dispatch', label: 'Tanker Dispatch', icon: Truck, adminOnly: false },
+    { id: 'tanker-history', label: 'Tanker History', icon: Truck, adminOnly: false },
+    { id: 'reports', label: 'Reports', icon: FileText, adminOnly: false },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3, adminOnly: false },
+  ].filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -65,11 +69,10 @@ export default function Layout({ user, onNavigate, onLogout, children, currentPa
                 <button
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${
-                    isActive
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-slate-700 hover:text-white'
-                  }`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${isActive
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-300 hover:bg-slate-700 hover:text-white'
+                    }`}
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
                   {sidebarOpen && <span>{item.label}</span>}

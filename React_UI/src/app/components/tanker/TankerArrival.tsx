@@ -24,35 +24,48 @@ export default function TankerArrival({ user, onNavigate, onLogout }: TankerArri
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  const response = await fetch('http://127.0.0.1:8000/api/tanker/arrival/', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(formData),
-  });
+    try {
+      console.log('Submitting tanker arrival data:', formData);
+      
+      const response = await fetch('http://127.0.0.1:8000/api/tanker/arrival/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
 
-  if (response.ok) {
-    alert('Tanker arrival recorded successfully!');
-    setFormData({
-      tanker_number: '',
-      raw_material: '',
-      arrival_date: '',
-      arrival_time: '',
-      sampling_date: '',
-      sampling_time: '',
-      batch_number: '',
-      order_number: '',
-      driver_name: '',
-      quantity: '',
-      supplier: ''
-    });
-  } else {
-    alert('Error saving tanker arrival');
-  }
-};
+      console.log('Response status:', response.status);
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Success response:', result);
+        alert('Tanker arrival recorded successfully! Data saved to tanker_arrival.xlsx and tanker_history.xlsx');
+        setFormData({
+          tanker_number: '',
+          raw_material: '',
+          arrival_date: '',
+          arrival_time: '',
+          sampling_date: '',
+          sampling_time: '',
+          batch_number: '',
+          order_number: '',
+          driver_name: '',
+          quantity: '',
+          supplier: ''
+        });
+      } else {
+        const errorData = await response.json();
+        console.error('Error response:', errorData);
+        alert(`Error saving tanker arrival: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Network or fetch error:', error);
+      alert(`Failed to submit tanker arrival. Error: ${error instanceof Error ? error.message : 'Network error. Please ensure the backend server is running on http://127.0.0.1:8000'}`);
+    }
+  };
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
