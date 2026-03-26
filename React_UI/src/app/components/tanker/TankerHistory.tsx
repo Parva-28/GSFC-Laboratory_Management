@@ -1,7 +1,6 @@
-import Layout from '../layout/Layout';
 import { Search, Calendar, TruckIcon, ArrowRight } from 'lucide-react';
 import { useEffect, useState } from "react";
-
+import api from '../../api';
 
 interface TankerHistoryProps {
   user: any;
@@ -11,51 +10,91 @@ interface TankerHistoryProps {
 
 export default function TankerHistory({ user, onNavigate, onLogout }: TankerHistoryProps) {
   const [searchTerm, setSearchTerm] = useState('');
-
+  const [isDownloadingCoA, setIsDownloadingCoA] = useState(false);
 
   const [history, setHistory] = useState<any[]>([]);
 
   useEffect(() => {
-  fetch("http://127.0.0.1:8000/api/tanker/history/")
-    .then(res => res.json())
-    .then(data => setHistory(data))
-    .catch(err => console.error("History fetch error", err));
-}, []);
+    api.get("tanker/history/")
+      .then(res => setHistory(res.data.data?.results || []))
+      .catch(err => console.error("History fetch error", err));
+  }, []);
+
+  const handleDownloadCoA = async (batchNumber: string) => {
+    if (!batchNumber) {
+        alert("Batch number is required to generate CoA.");
+        return;
+    }
+    try {
+      setIsDownloadingCoA(true);
+      const res = await api.get(`/api/reports/coa/${encodeURIComponent(batchNumber)}/`, {
+        responseType: 'blob', // Important for file downloads
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      // Extract filename from headers if possible
+      const disposition = res.headers['content-disposition'];
+      let fileName = `CoA_${batchNumber}.pdf`;
+      if (disposition && disposition.indexOf('attachment') !== -1) {
+          const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+          const matches = filenameRegex.exec(disposition);
+          if (matches != null && matches[1]) { 
+            fileName = matches[1].replace(/['"]/g, '');
+          }
+      }
+
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch (err: any) {
+      console.error('CoA Download failed:', err);
+      if (err.response?.status === 404) {
+          alert('Lab data not found for this batch. Complete lab analysis first to generate a CoA.');
+      } else {
+          alert('Failed to generate Certificate of Analysis. Please try again.');
+      }
+    } finally {
+      setIsDownloadingCoA(false);
+    }
+  };
 
 
-const uiHistory = history.map((item, index) => ({
-  id: index + 1,
+  const uiHistory = history.map((item, index) => ({
+    id: index + 1,
 
-  tankerNumber: item.tanker_number,
+    tankerNumber: item.tanker_number,
 
-  type: item.movement_type === "ARRIVAL" ? "arrival" : "dispatch",
+    type: item.movement_type === "ARRIVAL" ? "arrival" : "dispatch",
 
-  material: item.material_or_product,
+    material: item.material_or_product,
 
-  quantity: item.quantity,
+    quantity: item.quantity,
 
-  date: item.date,
-  time: item.time,
+    date: item.date,
+    time: item.time,
 
-  batchNumber: item.batch_number,
+    batchNumber: item.batch_number,
 
-  status:
-    item.movement_type === "ARRIVAL"
-      ? "Completed"
-      : "Delivered",
+    status:
+      item.movement_type === "ARRIVAL"
+        ? "Completed"
+        : "Delivered",
 
-  supplier:
-    item.movement_type === "ARRIVAL"
-      ? item.source_destination
-      : undefined,
+    supplier:
+      item.movement_type === "ARRIVAL"
+        ? item.source_destination
+        : undefined,
 
-  destination:
-    item.movement_type === "DISPATCH"
-      ? item.source_destination
-      : undefined,
-}));
+    destination:
+      item.movement_type === "DISPATCH"
+        ? item.source_destination
+        : undefined,
+  }));
 
- const filteredHistory = uiHistory.filter(item =>
+  const filteredHistory = uiHistory.filter(item =>
 
     item.tankerNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.material.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -63,7 +102,7 @@ const uiHistory = history.map((item, index) => ({
   );
 
   return (
-    <Layout user={user} onNavigate={onNavigate} onLogout={onLogout} currentPage="tanker-history">
+    <>
       <div>
         {/* Page Header */}
         <div className="mb-6">
@@ -98,12 +137,10 @@ const uiHistory = history.map((item, index) => ({
               <div className="p-6">
                 <div className="flex items-start gap-4">
                   {/* Icon */}
-                  <div className={`p-3 rounded-full ${
-                    item.type === 'arrival' ? 'bg-blue-100' : 'bg-green-100'
-                  }`}>
-                    <TruckIcon className={`w-6 h-6 ${
-                      item.type === 'arrival' ? 'text-blue-600' : 'text-green-600'
-                    }`} />
+                  <div className={`p-3 rounded-full ${item.type === 'arrival' ? 'bg-blue-100' : 'bg-green-100'
+                    }`}>
+                    <TruckIcon className={`w-6 h-6 ${item.type === 'arrival' ? 'text-blue-600' : 'text-green-600'
+                      }`} />
                   </div>
 
                   {/* Content */}
@@ -117,11 +154,10 @@ const uiHistory = history.map((item, index) => ({
                           {item.type === 'arrival' ? 'Raw Material Arrival' : 'Product Dispatch'}
                         </p>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        item.status === 'Completed' || item.status === 'Delivered'
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${item.status === 'Completed' || item.status === 'Delivered'
                           ? 'bg-green-100 text-green-800'
                           : 'bg-blue-100 text-blue-800'
-                      }`}>
+                        }`}>
                         {item.status}
                       </span>
                     </div>
@@ -150,7 +186,7 @@ const uiHistory = history.map((item, index) => ({
 
                     {/* Additional Info */}
                     <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-gray-600 flex-1">
                         {item.type === 'arrival' && item.supplier && (
                           <span>Supplier: <strong>{item.supplier}</strong></span>
                         )}
@@ -158,10 +194,21 @@ const uiHistory = history.map((item, index) => ({
                           <span>Destination: <strong>{item.destination}</strong></span>
                         )}
                       </div>
-                      <button className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm">
-                        View Details
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-4">
+                        {item.type === 'dispatch' && (
+                           <button 
+                             onClick={() => handleDownloadCoA(item.batchNumber)}
+                             disabled={isDownloadingCoA}
+                             className="flex items-center gap-2 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
+                           >
+                              {isDownloadingCoA ? 'Generating...' : 'Download CoA'}
+                           </button>
+                        )}
+                        <button className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm">
+                          View Details
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -179,6 +226,6 @@ const uiHistory = history.map((item, index) => ({
           </div>
         )}
       </div>
-    </Layout>
+    </>
   );
 }

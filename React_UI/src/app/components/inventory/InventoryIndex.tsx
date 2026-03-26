@@ -1,8 +1,10 @@
-import Layout from '../layout/Layout';
+
 import {
   Plus, PackageOpen, AlertCircle, TrendingDown, TrendingUp, RefreshCw, ShieldCheck
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
+import api from '../../api';
+
 
 interface InventoryIndexProps {
   user: any;
@@ -38,19 +40,19 @@ export default function InventoryIndex({ user, onNavigate, onLogout }: Inventory
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const isEmployee = user?.role === 'PLANT_EMPLOYEE';
-  const isAdmin = user?.role === 'CENTRAL_ADMIN';
+  const isEmployee = user?.role === 'EMPLOYEE';
+  const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'LAB_ADMIN';
 
   const fetchBalances = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/inventory/balance/');
-      const data = await response.json();
-      if (data.ok) {
-        setBalances(data.balances);
+      const response = await api.get('inventory/balance/');
+      const data = response.data;
+      if (data.success) {
+        setBalances(data.data?.balances || []);
       } else {
-        setError(data.error || 'Failed to load balances');
+        setError(data.message || 'Failed to load balances');
       }
     } catch {
       setError('Backend offline — start the Django server.');
@@ -69,7 +71,7 @@ export default function InventoryIndex({ user, onNavigate, onLogout }: Inventory
   const pct = (current: number, max: number) => Math.min((current / max) * 100, 100);
 
   return (
-    <Layout user={user} onNavigate={onNavigate} onLogout={onLogout} currentPage="inventory">
+    <>
       <div>
         {/* ── Page Header ── */}
         <div className="flex items-center justify-between mb-6">
@@ -88,8 +90,8 @@ export default function InventoryIndex({ user, onNavigate, onLogout }: Inventory
               Refresh
             </button>
 
-            {/* EMPLOYEE actions */}
-            {isEmployee && (
+            {/* EMPLOYEE AND ADMIN actions */}
+            {(isEmployee || isAdmin) && (
               <>
                 <button
                   onClick={() => onNavigate('inventory-add')}
@@ -204,16 +206,16 @@ export default function InventoryIndex({ user, onNavigate, onLogout }: Inventory
                       </div>
                     </div>
 
-                    {/* Status + per-card Borrow button (employees only) */}
+                    {/* Status + per-card Borrow button (employees & admins) */}
                     <div className="flex items-center justify-between gap-2 mt-2">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${isLow ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
                         {isLow ? '⚠ Low Stock' : '✓ Normal'}
                       </span>
 
-                      {isEmployee && (
+                      {(isEmployee || isAdmin) && (
                         <button
                           onClick={() => onNavigate('inventory-borrow', { material: item.material })}
-                          className="flex items-center gap-1.5 bg-orange-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-orange-700 transition-colors"
+                          className="flex items-center gap-1.5 bg-white text-slate-700 border border-slate-300 px-3 py-1.5 rounded text-xs font-medium hover:bg-slate-50 transition-colors shadow-sm"
                         >
                           <PackageOpen className="w-3.5 h-3.5" />
                           Borrow / Withdraw
@@ -273,6 +275,6 @@ export default function InventoryIndex({ user, onNavigate, onLogout }: Inventory
           </>
         )}
       </div>
-    </Layout>
+    </>
   );
 }

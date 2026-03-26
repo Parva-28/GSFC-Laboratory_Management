@@ -1,6 +1,6 @@
-import Layout from '../layout/Layout';
 import { Save, Truck } from 'lucide-react';
 import { useState } from 'react';
+import api from '../../api';
 
 interface TankerArrivalProps {
   user: any;
@@ -28,42 +28,28 @@ export default function TankerArrival({ user, onNavigate, onLogout }: TankerArri
 
     try {
       console.log('Submitting tanker arrival data:', formData);
-      
-      const response = await fetch('http://127.0.0.1:8000/api/tanker/arrival/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
 
-      console.log('Response status:', response.status);
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Success response:', result);
-        alert('Tanker arrival recorded successfully! Data saved to tanker_arrival.xlsx and tanker_history.xlsx');
-        setFormData({
-          tanker_number: '',
-          raw_material: '',
-          arrival_date: '',
-          arrival_time: '',
-          sampling_date: '',
-          sampling_time: '',
-          batch_number: '',
-          order_number: '',
-          driver_name: '',
-          quantity: '',
-          supplier: ''
-        });
-      } else {
-        const errorData = await response.json();
-        console.error('Error response:', errorData);
-        alert(`Error saving tanker arrival: ${errorData.error || 'Unknown error'}`);
-      }
-    } catch (error) {
+      const response = await api.post('tanker/arrival/', formData);
+      console.log('Success response:', response.data);
+      const generatedTankerId = response.data.data?.tanker_id || "Unknown";
+      alert(`Tanker arrival recorded successfully!\nGenerated Tanker ID: ${generatedTankerId}\nData saved to tanker_arrival.xlsx and tanker_history.xlsx`);
+      setFormData({
+        tanker_number: '',
+        raw_material: '',
+        arrival_date: '',
+        arrival_time: '',
+        sampling_date: '',
+        sampling_time: '',
+        batch_number: '',
+        order_number: '',
+        driver_name: '',
+        quantity: '',
+        supplier: ''
+      });
+    } catch (error: any) {
       console.error('Network or fetch error:', error);
-      alert(`Failed to submit tanker arrival. Error: ${error instanceof Error ? error.message : 'Network error. Please ensure the backend server is running on http://127.0.0.1:8000'}`);
+      const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
+      alert(`Failed to submit tanker arrival. Error: ${errorMsg}`);
     }
   };
 
@@ -76,7 +62,7 @@ export default function TankerArrival({ user, onNavigate, onLogout }: TankerArri
   };
 
   return (
-    <Layout user={user} onNavigate={onNavigate} onLogout={onLogout} currentPage="tanker-arrival">
+    <>
       <div className="max-w-4xl mx-auto">
         {/* Page Header */}
         <div className="mb-6 flex items-center gap-4">
@@ -285,6 +271,6 @@ export default function TankerArrival({ user, onNavigate, onLogout }: TankerArri
           </div>
         </form>
       </div>
-    </Layout>
+    </>
   );
 }

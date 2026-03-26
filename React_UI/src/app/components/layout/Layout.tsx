@@ -10,7 +10,9 @@ import {
   Bell,
   LogOut,
   Menu,
-  X
+  X,
+  Wrench,
+  Clock
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -25,25 +27,30 @@ interface LayoutProps {
 export default function Layout({ user, onNavigate, onLogout, children, currentPage }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const isAdmin = user?.role === 'CENTRAL_ADMIN';
+  const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'LAB_ADMIN';
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
     { id: 'labdata-form', label: 'Lab Data Entry', icon: TestTube, adminOnly: false },
     { id: 'inventory', label: 'Inventory', icon: Package, adminOnly: false },
     { id: 'inventory-admin', label: 'Inventory Admin', icon: ShieldCheck, adminOnly: true },
-    { id: 'tanker-arrival', label: 'Tanker Arrival', icon: Truck, adminOnly: false },
-    { id: 'tanker-dispatch', label: 'Tanker Dispatch', icon: Truck, adminOnly: false },
-    { id: 'tanker-history', label: 'Tanker History', icon: Truck, adminOnly: false },
+    { id: 'tanker-track', label: 'Tanker Track', icon: Truck, adminOnly: false },
+    { id: 'instruments', label: 'Calibration', icon: Wrench, adminOnly: false },
+    { id: 'shifts', label: 'Shift Handover', icon: Clock, adminOnly: false },
     { id: 'reports', label: 'Reports', icon: FileText, adminOnly: false },
     { id: 'analytics', label: 'Analytics', icon: BarChart3, adminOnly: false },
-  ].filter((item) => !item.adminOnly || isAdmin);
+    { id: 'admin-users', label: 'User Management', icon: ShieldCheck, superAdminOnly: true },
+  ].filter((item: any) => {
+    if (item.superAdminOnly) return user?.role === 'SUPER_ADMIN';
+    if (item.adminOnly) return isAdmin;
+    return true;
+  });
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen bg-gray-50 flex overflow-hidden" style={{ margin: 0, borderRadius: 0, boxShadow: 'none' }}>
       {/* Sidebar */}
-      <div className={`bg-slate-800 text-white transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-20'}`}>
-        <div className="flex flex-col h-screen">
+      <aside className={`bg-slate-800 text-white transition-all duration-300 flex-shrink-0 ${sidebarOpen ? 'w-64' : 'w-20'}`} style={{ borderRadius: 0, margin: 0 }}>
+        <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-4 border-b border-slate-700 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -81,12 +88,12 @@ export default function Layout({ user, onNavigate, onLogout, children, currentPa
             })}
           </nav>
         </div>
-      </div>
+      </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-semibold text-gray-800">

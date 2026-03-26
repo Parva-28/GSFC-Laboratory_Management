@@ -126,6 +126,21 @@
 
   body {
     @apply bg-background text-foreground;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, #root {
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  /* Override shadcn/tw-animate inset variant that adds rounding + margin */
+  [data-variant="inset"],
+  .peer-data-\[variant\=inset\] {
+    margin: 0 !important;
+    border-radius: 0 !important;
   }
 
   /**

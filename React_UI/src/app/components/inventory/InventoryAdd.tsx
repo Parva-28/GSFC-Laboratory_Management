@@ -1,6 +1,6 @@
-import Layout from '../layout/Layout';
 import { Save, ArrowLeft, PackagePlus, ShieldX } from 'lucide-react';
 import { useState } from 'react';
+import api from '../../api';
 
 interface InventoryAddProps {
   user: any;
@@ -9,28 +9,10 @@ interface InventoryAddProps {
 }
 
 export default function InventoryAdd({ user, onNavigate, onLogout }: InventoryAddProps) {
-  // Guard: Plant Employees only — admin approves, employees add stock
-  if (user?.role !== 'PLANT_EMPLOYEE') {
-    return (
-      <Layout user={user} onNavigate={onNavigate} onLogout={onLogout} currentPage="inventory-add">
-        <div className="max-w-lg mx-auto mt-16 text-center">
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-10">
-            <ShieldX className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-purple-700 mb-2">Admin — Approvals Only</h2>
-            <p className="text-purple-600 mb-6">
-              As <strong>Central Admin</strong> you approve or reject requests — employees submit stock additions.
-              Use <strong>Manage Approvals</strong> to process pending requests.
-            </p>
-            <button
-              onClick={() => onNavigate('inventory-admin')}
-              className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              Go to Manage Approvals
-            </button>
-          </div>
-        </div>
-      </Layout>
-    );
+  // Guard: Not needed since we now allow both roles
+  // but keep the user check just in case
+  if (!user) {
+    return null;
   }
 
   const now = new Date();
@@ -63,21 +45,25 @@ export default function InventoryAdd({ user, onNavigate, onLogout }: InventoryAd
     setStatusMsg(null);
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/inventory/add-stock/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          received_by: user?.username || 'Admin',
-        }),
+      const response = await api.post('inventory/borrow/', {
+        request_type: 'ADD',
+        raw_material: formData.material,
+        quantity: formData.quantity,
+        unit: formData.unit,
+        purpose: 'Incoming Stock',
+        employee_name: user?.username || 'Employee',
+        employee_id: 'N/A',
+        request_date: formData.date,
+        request_time: formData.time,
+        remarks: formData.remarks + `${formData.supplier ? ' Supplier: ' + formData.supplier : ''}${formData.invoice_no ? ' Invoice: ' + formData.invoice_no : ''}`
       });
 
-      const result = await response.json();
+      const result = response.data;
 
-      if (response.ok && result.ok) {
+      if (result.success) {
         setStatusMsg({
           type: 'success',
-          text: `✅ Stock added successfully! New balance: ${result.new_balance} ${formData.unit}`,
+          text: `✅ Request submitted! ID: ${result.data?.request_id || 'N/A'}. Pending Admin approval.`,
         });
         // Reset form but keep date/time and material
         setFormData((prev) => ({
@@ -88,12 +74,12 @@ export default function InventoryAdd({ user, onNavigate, onLogout }: InventoryAd
           remarks: '',
         }));
       } else {
-        setStatusMsg({ type: 'error', text: `❌ Error: ${result.error || 'Unknown error'}` });
+        setStatusMsg({ type: 'error', text: `❌ Error: ${result.message || 'Unknown error'}` });
       }
-    } catch {
+    } catch (error: any) {
       setStatusMsg({
         type: 'error',
-        text: '❌ Network error. Make sure the Django backend is running on http://127.0.0.1:8000',
+        text: `❌ Network error. ${error.response?.data?.error || error.message || 'Make sure the Django backend is running on http://127.0.0.1:8000'}`,
       });
     } finally {
       setIsSaving(false);
@@ -110,7 +96,7 @@ export default function InventoryAdd({ user, onNavigate, onLogout }: InventoryAd
   ];
 
   return (
-    <Layout user={user} onNavigate={onNavigate} onLogout={onLogout} currentPage="inventory-add">
+    <>
       <div className="max-w-3xl mx-auto">
         {/* Back */}
         <button
@@ -127,8 +113,8 @@ export default function InventoryAdd({ user, onNavigate, onLogout }: InventoryAd
             <PackagePlus className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Add Inventory Stock (IN)</h2>
-            <p className="text-gray-600">Record incoming raw material from supplier — Central Admin only</p>
+            <h2 className="text-2xl font-bold text-gray-800">Request Stock Addition (IN)</h2>
+            <p className="text-gray-600">Submit an incoming material receipt for Admin Approval</p>
           </div>
         </div>
 
@@ -279,14 +265,14 @@ export default function InventoryAdd({ user, onNavigate, onLogout }: InventoryAd
               value={formData.remarks}
               onChange={handleChange}
               rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-500 text-sm"
               placeholder="Any additional notes..."
             />
           </div>
 
-          {/* Admin badge */}
-          <div className="mx-6 my-4 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-blue-800 text-sm">
-            🔒 This action is logged under <strong>{user?.username}</strong> (Central Admin). The transaction will be recorded in <code>inventory.xlsx</code>.
+          {/* Notice banner */}
+          <div className="mx-6 my-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-amber-800 text-sm">
+            ⚠️ This request will be sent to the <strong>Central Admin</strong> for approval.
           </div>
 
           {/* Actions */}
@@ -298,7 +284,7 @@ export default function InventoryAdd({ user, onNavigate, onLogout }: InventoryAd
                 }`}
             >
               <Save className="w-5 h-5" />
-              {isSaving ? 'Saving...' : 'Add Stock to Inventory'}
+              {isSaving ? 'Submitting...' : 'Submit Request'}
             </button>
             <button
               type="button"
@@ -310,6 +296,6 @@ export default function InventoryAdd({ user, onNavigate, onLogout }: InventoryAd
           </div>
         </form>
       </div>
-    </Layout>
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import Layout from '../layout/Layout';
+
 import { 
   BarChart, 
   Bar, 
@@ -74,7 +74,7 @@ export default function AnalyticsIndex({ user, onNavigate, onLogout }: Analytics
   ];
 
   return (
-    <Layout user={user} onNavigate={onNavigate} onLogout={onLogout} currentPage="analytics">
+    <>
       <div>
         {/* Page Header */}
         <div className="flex items-center justify-between mb-6">
@@ -268,6 +268,6 @@ export default function AnalyticsIndex({ user, onNavigate, onLogout }: Analytics
           </div>
         </div>
       </div>
-    </Layout>
+    </>
   );
 }

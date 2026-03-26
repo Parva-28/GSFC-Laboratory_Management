@@ -1,6 +1,6 @@
-import Layout from '../layout/Layout';
 import { Save, TruckIcon } from 'lucide-react';
 import { useState } from 'react';
+import api from '../../api';
 
 interface TankerDispatchProps {
   user: any;
@@ -27,42 +27,27 @@ export default function TankerDispatch({ user, onNavigate, onLogout }: TankerDis
 
     try {
       console.log('Submitting tanker dispatch data:', formData);
-      
-      const response = await fetch(
-        'http://127.0.0.1:8000/api/tanker/dispatch/',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        }
-      );
 
-      console.log('Response status:', response.status);
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Success response:', result);
-        alert('Tanker dispatch recorded successfully! Data saved to tanker_dispatch.xlsx and tanker_history.xlsx');
-        setFormData({
-          tanker_number: '',
-          finished_product: '',
-          quantity: '',
-          driver_name: '',
-          dispatch_date: '',
-          dispatch_time: '',
-          destination: '',
-          customer_name: '',
-          batch_number: '',
-          order_number: '',
-        });
-      } else {
-        const errorData = await response.json();
-        console.error('Error response:', errorData);
-        alert(`Error saving tanker dispatch: ${errorData.error || 'Unknown error'}`);
-      }
-    } catch (error) {
+      const response = await api.post('tanker/dispatch/', formData);
+
+      console.log('Success response:', response.data);
+      alert('Tanker dispatch recorded successfully! Data saved to tanker_dispatch.xlsx and tanker_history.xlsx');
+      setFormData({
+        tanker_number: '',
+        finished_product: '',
+        quantity: '',
+        driver_name: '',
+        dispatch_date: '',
+        dispatch_time: '',
+        destination: '',
+        customer_name: '',
+        batch_number: '',
+        order_number: '',
+      });
+    } catch (error: any) {
       console.error('Network or fetch error:', error);
-      alert(`Failed to submit tanker dispatch. Error: ${error instanceof Error ? error.message : 'Network error. Please ensure the backend server is running on http://127.0.0.1:8000'}`);
+      const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
+      alert(`Failed to submit tanker dispatch. Error: ${errorMsg}`);
     }
   };
 
@@ -74,7 +59,7 @@ export default function TankerDispatch({ user, onNavigate, onLogout }: TankerDis
   };
 
   return (
-    <Layout user={user} onNavigate={onNavigate} onLogout={onLogout} currentPage="tanker-dispatch">
+    <>
       <div className="max-w-4xl mx-auto">
         {/* Page Header */}
         <div className="mb-6 flex items-center gap-4">
@@ -270,6 +255,6 @@ export default function TankerDispatch({ user, onNavigate, onLogout }: TankerDis
           </div>
         </form>
       </div>
-    </Layout>
+    </>
   );
 }

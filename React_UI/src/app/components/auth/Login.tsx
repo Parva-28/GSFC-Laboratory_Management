@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FlaskConical, LogIn, AlertCircle } from 'lucide-react';
+import api from '../../api';
 
 interface LoginProps {
   onLogin: (userData: any) => void;
@@ -16,34 +17,30 @@ export default function Login({ onLogin }: LoginProps) {
     setError('');
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/auth/login/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: formData.username.trim(),
-          password: formData.password.trim(),
-        }),
+      const response = await api.post('auth/login/', {
+        username: formData.username.trim(),
+        password: formData.password.trim(),
       });
 
-      const data = await response.json();
+      const payload = response.data;
 
-      if (data.ok) {
-        // Persist auth to localStorage so session survives page refresh
+      if (payload.success) {
+        // Persist auth to sessionStorage so session survives page refresh
         const userData = {
-          token: data.token,
-          username: data.username,
-          role: data.role,
-          lab: data.lab,
+          token: payload.data.token,
+          username: payload.data.username,
+          role: payload.data.role,
+          lab: payload.data.lab,
           // legacy field used by some components
-          laboratory: data.lab,
+          laboratory: payload.data.lab,
         };
-        localStorage.setItem('lims_auth', JSON.stringify(userData));
+        sessionStorage.setItem('lims_auth', JSON.stringify(userData));
         onLogin(userData);
       } else {
-        setError(data.error || 'Invalid credentials. Please try again.');
+        setError(payload.message || 'Invalid credentials. Please try again.');
       }
-    } catch {
-      setError('Cannot connect to server. Make sure the Django backend is running on http://127.0.0.1:8000');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Cannot connect to server. Make sure the Django backend is running on http://127.0.0.1:8000');
     } finally {
       setIsLoading(false);
     }

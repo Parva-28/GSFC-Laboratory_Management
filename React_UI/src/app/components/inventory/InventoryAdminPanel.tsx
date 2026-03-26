@@ -1,6 +1,6 @@
-import Layout from '../layout/Layout';
 import { ShieldCheck, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import api from '../../api';
 
 interface Request {
     request_id: string;
@@ -15,7 +15,9 @@ interface Request {
     remarks: string;
     status: string;
     approved_by: string;
-    approval_time: string;
+    issued_by?: string;
+    issued_at?: string;
+    request_type?: string;
 }
 
 interface InventoryAdminPanelProps {
@@ -35,12 +37,12 @@ export default function InventoryAdminPanel({ user, onNavigate, onLogout }: Inve
         setLoading(true);
         setError('');
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/inventory/requests/');
-            const data = await response.json();
-            if (data.ok) {
-                setRequests(data.requests);
+            const response = await api.get('inventory/requests/');
+            const data = response.data;
+            if (data.success) {
+                setRequests(data.data?.results || []);
             } else {
-                setError(data.error || 'Failed to load requests');
+                setError(data.message || 'Failed to load requests');
             }
         } catch {
             setError('Network error. Make sure the backend is running on http://127.0.0.1:8000');
@@ -53,30 +55,26 @@ export default function InventoryAdminPanel({ user, onNavigate, onLogout }: Inve
         fetchRequests();
     }, []);
 
-    const handleAction = async (requestId: string, action: 'APPROVE' | 'REJECT') => {
+    const handleAction = async (requestId: string, action: 'APPROVE' | 'REJECT' | 'ISSUE') => {
         setProcessingId(requestId);
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/inventory/approve/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    request_id: requestId,
-                    action,
-                    approved_by: user?.name || 'Admin',
-                }),
+            const response = await api.post('inventory/approve/', {
+                request_id: requestId,
+                action,
+                approved_by: user?.name || 'Admin',
             });
-            const data = await response.json();
-            if (data.ok) {
+            const data = response.data;
+            if (data.success) {
                 // Update row in local state instead of re-fetching
                 setRequests((prev) =>
                     prev.map((r) =>
                         r.request_id === requestId
-                            ? { ...r, status: data.status }
+                            ? { ...r, status: data.data?.status || action }
                             : r
                     )
                 );
             } else {
-                alert(`Error: ${data.error}`);
+                alert(`Error: ${data.message}`);
             }
         } catch {
             alert('Network error.');
@@ -86,7 +84,8 @@ export default function InventoryAdminPanel({ user, onNavigate, onLogout }: Inve
     };
 
     const statusColor = (status: string) => {
-        if (status === 'Approved') return 'bg-green-100 text-green-800';
+        if (status === 'Approved') return 'bg-blue-100 text-blue-800';
+        if (status === 'Issued') return 'bg-green-100 text-green-800';
         if (status === 'Rejected') return 'bg-red-100 text-red-800';
         return 'bg-amber-100 text-amber-800';
     };
@@ -98,7 +97,7 @@ export default function InventoryAdminPanel({ user, onNavigate, onLogout }: Inve
     const pendingCount = requests.filter((r) => r.status === 'Pending').length;
 
     return (
-        <Layout user={user} onNavigate={onNavigate} onLogout={onLogout} currentPage="inventory-admin">
+        <>
             <div>
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
@@ -121,7 +120,7 @@ export default function InventoryAdminPanel({ user, onNavigate, onLogout }: Inve
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-4 gap-4 mb-6">
                     <div className="bg-white rounded-lg shadow p-4 flex items-center gap-3">
                         <Clock className="w-8 h-8 text-amber-500" />
                         <div>
@@ -130,10 +129,17 @@ export default function InventoryAdminPanel({ user, onNavigate, onLogout }: Inve
                         </div>
                     </div>
                     <div className="bg-white rounded-lg shadow p-4 flex items-center gap-3">
-                        <CheckCircle className="w-8 h-8 text-green-500" />
+                        <CheckCircle className="w-8 h-8 text-blue-500" />
                         <div>
                             <p className="text-2xl font-bold text-gray-800">{requests.filter((r) => r.status === 'Approved').length}</p>
                             <p className="text-sm text-gray-500">Approved</p>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 flex items-center gap-3">
+                        <CheckCircle className="w-8 h-8 text-green-500" />
+                        <div>
+                            <p className="text-2xl font-bold text-gray-800">{requests.filter((r) => r.status === 'Issued' || r.status === 'Completed').length}</p>
+                            <p className="text-sm text-gray-500">Issued / Completed</p>
                         </div>
                     </div>
                     <div className="bg-white rounded-lg shadow p-4 flex items-center gap-3">
@@ -154,13 +160,13 @@ export default function InventoryAdminPanel({ user, onNavigate, onLogout }: Inve
 
                 {/* Filter Tabs */}
                 <div className="flex gap-2 mb-4">
-                    {['All', 'Pending', 'Approved', 'Rejected'].map((s) => (
+                    {['All', 'Pending', 'Approved', 'Issued', 'Completed', 'Rejected'].map((s) => (
                         <button
                             key={s}
                             onClick={() => setFilterStatus(s)}
                             className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterStatus === s
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
                                 }`}
                         >
                             {s}
@@ -196,7 +202,12 @@ export default function InventoryAdminPanel({ user, onNavigate, onLogout }: Inve
                                 <tbody className="divide-y divide-gray-200">
                                     {filteredRequests.map((r) => (
                                         <tr key={r.request_id} className="hover:bg-gray-50">
-                                            <td className="px-4 py-4 font-mono text-xs text-gray-700">{r.request_id}</td>
+                                            <td className="px-4 py-4 font-mono text-xs text-gray-700">
+                                                {r.request_id}
+                                                <div className="mt-1 font-bold text-[10px] bg-gray-100 rounded px-1 w-max">
+                                                    {r.request_type === 'ADD' ? '📥 ADD' : '📤 BORROW'}
+                                                </div>
+                                            </td>
                                             <td className="px-4 py-4 font-medium text-gray-900">{r.raw_material}</td>
                                             <td className="px-4 py-4 text-gray-700">
                                                 {r.quantity} {r.unit}
@@ -216,8 +227,11 @@ export default function InventoryAdminPanel({ user, onNavigate, onLogout }: Inve
                                                 <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusColor(r.status)}`}>
                                                     {r.status}
                                                 </span>
-                                                {r.approved_by && (
-                                                    <div className="text-xs text-gray-400 mt-1">by {r.approved_by}</div>
+                                                {r.approved_by && r.status !== 'Pending' && (
+                                                    <div className="text-xs text-gray-400 mt-1">Apprv: {r.approved_by}</div>
+                                                )}
+                                                {r.issued_by && r.status === 'Issued' && (
+                                                    <div className="text-xs text-gray-400 mt-1">Issued: {r.issued_by}</div>
                                                 )}
                                             </td>
                                             <td className="px-4 py-4">
@@ -226,7 +240,7 @@ export default function InventoryAdminPanel({ user, onNavigate, onLogout }: Inve
                                                         <button
                                                             onClick={() => handleAction(r.request_id, 'APPROVE')}
                                                             disabled={processingId === r.request_id}
-                                                            className="flex items-center gap-1 bg-green-600 text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+                                                            className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
                                                         >
                                                             <CheckCircle className="w-3 h-3" />
                                                             Approve
@@ -240,9 +254,18 @@ export default function InventoryAdminPanel({ user, onNavigate, onLogout }: Inve
                                                             Reject
                                                         </button>
                                                     </div>
+                                                ) : r.status === 'Approved' && r.request_type !== 'ADD' ? (
+                                                    <button
+                                                        onClick={() => handleAction(r.request_id, 'ISSUE')}
+                                                        disabled={processingId === r.request_id}
+                                                        className="flex items-center gap-1 bg-green-600 text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+                                                    >
+                                                        <CheckCircle className="w-3 h-3" />
+                                                        Issue Stock
+                                                    </button>
                                                 ) : (
                                                     <span className="text-gray-400 text-xs italic">
-                                                        {r.status === 'Approved' ? '✅ Done' : '❌ Done'}
+                                                        {r.status === 'Issued' || r.status === 'Completed' ? `✅ ${r.status}` : '❌ Done'}
                                                     </span>
                                                 )}
                                             </td>
@@ -254,6 +277,6 @@ export default function InventoryAdminPanel({ user, onNavigate, onLogout }: Inve
                     )}
                 </div>
             </div>
-        </Layout>
+        </>
     );
 }

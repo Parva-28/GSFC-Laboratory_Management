@@ -1,6 +1,6 @@
-import Layout from '../layout/Layout';
 import { ArrowLeft, Send, Package } from 'lucide-react';
 import { useState } from 'react';
+import api from '../../api';
 
 interface InventoryBorrowFormProps {
     user: any;
@@ -20,6 +20,7 @@ export default function InventoryBorrowForm({
     const currentTime = now.toTimeString().slice(0, 5);
 
     const [formData, setFormData] = useState({
+        request_type: 'BORROW',
         raw_material: selectedMaterial,
         quantity: '',
         unit: 'MT',
@@ -46,20 +47,16 @@ export default function InventoryBorrowForm({
         setStatusMsg(null);
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/inventory/borrow/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
-            });
+            const response = await api.post('inventory/borrow/', formData);
+            const result = response.data;
 
-            const result = await response.json();
-
-            if (response.ok && result.ok) {
+            if (result.success) {
                 setStatusMsg({
                     type: 'success',
-                    text: `✅ Request submitted successfully! ID: ${result.request_id}. Pending Admin approval.`,
+                    text: `✅ Request submitted successfully! ID: ${result.data?.request_id || 'N/A'}. Pending Admin approval.`,
                 });
                 setFormData({
+                    request_type: 'BORROW',
                     raw_material: selectedMaterial,
                     quantity: '',
                     unit: 'MT',
@@ -71,7 +68,7 @@ export default function InventoryBorrowForm({
                     remarks: '',
                 });
             } else {
-                setStatusMsg({ type: 'error', text: `❌ Error: ${result.error || 'Unknown error'}` });
+                setStatusMsg({ type: 'error', text: `❌ Error: ${result.message || 'Unknown error'}` });
             }
         } catch (err) {
             setStatusMsg({
@@ -93,7 +90,7 @@ export default function InventoryBorrowForm({
     ];
 
     return (
-        <Layout user={user} onNavigate={onNavigate} onLogout={onLogout} currentPage="inventory-borrow">
+        <>
             <div className="max-w-3xl mx-auto">
                 {/* Back */}
                 <button
@@ -119,8 +116,8 @@ export default function InventoryBorrowForm({
                 {statusMsg && (
                     <div
                         className={`mb-6 px-4 py-3 rounded-lg border ${statusMsg.type === 'success'
-                                ? 'bg-green-50 border-green-200 text-green-800'
-                                : 'bg-red-50 border-red-200 text-red-800'
+                            ? 'bg-green-50 border-green-200 text-green-800'
+                            : 'bg-red-50 border-red-200 text-red-800'
                             }`}
                     >
                         {statusMsg.text}
@@ -268,7 +265,7 @@ export default function InventoryBorrowForm({
                             value={formData.remarks}
                             onChange={handleChange}
                             rows={3}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-500 text-sm"
                             placeholder="Any additional notes..."
                         />
                     </div>
@@ -300,6 +297,6 @@ export default function InventoryBorrowForm({
                     </div>
                 </form>
             </div>
-        </Layout>
+        </>
     );
 }
